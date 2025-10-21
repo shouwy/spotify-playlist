@@ -1,12 +1,21 @@
 {
-  "name": "spotify-playlist-manager",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "start": "netlify dev",
-    "build": "echo 'No build step needed for this simple static site'"
-  },
-  "dependencies": {
-    "axios": "^1.7.0"
-  }
+    "name": "spotify-playlist-manager-react",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "dev": "netlify dev",
+        "start": "netlify dev",
+        "build": "echo 'Static site - no build step for demo'"
+    },
+    "dependencies": {
+        "axios": "^1.7.0",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0"
+    },
+    "devDependencies": {
+        "autoprefixer": "^10.4.0",
+        "postcss": "^8.4.0",
+        "tailwindcss": "^3.0.0",
+        "netlify-cli": "^12.0.0"
+    }
 }
