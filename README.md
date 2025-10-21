@@ -52,12 +52,8 @@ This repo is a self-contained single-file React frontend + Netlify Functions bac
 
 ---
 
-## Next steps I can do for you
+## Next steps I can do
 
 - Replace the vanilla JS UI with a polished React + Tailwind frontend (single-file or multi-file).
 - Add proper pagination for playlists, search for tracks to add by name, and batch add for long playlists (split into multiple requests).
 - Implement server-side sessions so refresh tokens never touch the browser.
-
-
-
-

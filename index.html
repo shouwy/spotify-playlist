@@ -1,0 +1,153 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Spotify Playlist Manager</title>
+    <style>
+      body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; padding: 20px; }
+      button { padding: 8px 12px; margin: 6px; }
+      input, select { padding:6px; margin:6px; }
+      .card { padding:12px; border:1px solid #ddd; border-radius:8px; margin:8px 0 }
+      .small { font-size: 0.9rem; color: #555 }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script type="module">
+    // Simple React-like UI without build step (vanilla JS + DOM)
+    // This file keeps everything minimal — feel free to replace with real React app.
+
+    const CLIENT_ID = '6e5b74c1a1f04bb4946e89ad2f7d7dff';
+    // Set this to your deployed site URL, e.g. https://spotify-running-flow.netlify.app
+    const SITE_URL = window.location.origin; // works when deployed
+    const REDIRECT_URI = SITE_URL + '/callback';
+    const SCOPES = 'playlist-modify-public playlist-modify-private playlist-read-private';
+
+    function el(tag, props = {}, ...children) {
+      const e = document.createElement(tag);
+      Object.entries(props).forEach(([k,v])=>{ if(k.startsWith('on')) e.addEventListener(k.slice(2).toLowerCase(), v); else e.setAttribute(k, v); });
+      children.flat().forEach(c=>{ if(typeof c === 'string') e.appendChild(document.createTextNode(c)); else if(c) e.appendChild(c); });
+      return e;
+    }
+
+    function saveTokens(t) {
+      localStorage.setItem('spotify_tokens', JSON.stringify(t));
+    }
+    function loadTokens(){ try { return JSON.parse(localStorage.getItem('spotify_tokens')); } catch(e){ return null; } }
+    function clearTokens(){ localStorage.removeItem('spotify_tokens'); }
+
+    async function apiFetch(path, options = {}){
+      const tokens = loadTokens();
+      const headers = options.headers || {};
+      if(tokens && tokens.access_token) headers['Authorization'] = 'Bearer ' + tokens.access_token;
+      const res = await fetch(path, {...options, headers});
+      if(res.status === 401){
+        // try refresh
+        if(tokens && tokens.refresh_token){
+          const r = await fetch('/.netlify/functions/refresh', {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({refresh_token: tokens.refresh_token})
+          });
+          if(r.ok){
+            const j = await r.json();
+            tokens.access_token = j.access_token;
+            if(j.refresh_token) tokens.refresh_token = j.refresh_token;
+            saveTokens(tokens);
+            headers['Authorization'] = 'Bearer ' + tokens.access_token;
+            return fetch(path, {...options, headers});
+          }
+        }
+      }
+      return res;
+    }
+
+    function renderApp(){
+      const root = document.getElementById('root');
+      root.innerHTML = '';
+
+      const header = el('div', {}, el('h1', {}, 'Spotify Playlist Manager (Netlify)'));
+      root.appendChild(header);
+
+      const tokens = loadTokens();
+
+      if(!tokens){
+        const p = el('div', {class:'card'}, el('p',{}, 'Tu n\'es pas connecté à Spotify.')); 
+        const loginBtn = el('button', {onclick: ()=>{ window.location.href = '/login' }}, 'Se connecter à Spotify');
+        p.appendChild(loginBtn);
+        root.appendChild(p);
+        return;
+      }
+
+      const info = el('div', {class:'card'}, el('p',{}, 'Connecté. Tu peux gérer tes playlists.'));
+      const logoutBtn = el('button', {onclick: ()=>{ clearTokens(); renderApp(); }}, 'Se déconnecter');
+      info.appendChild(logoutBtn);
+      root.appendChild(info);
+
+      // List user's playlists
+      const listBox = el('div', {class:'card'}, el('h3',{}, 'Tes playlists'), el('div', {id:'playlistsList'}, 'Chargement...'));
+      root.appendChild(listBox);
+
+      // Controls to create a new playlist
+      const createBox = el('div', {class:'card'}, el('h3',{}, 'Créer une playlist'),
+        el('input', {id:'newName', placeholder:'Nom de la playlist', value:'🏃 Running Electro Flow'}),
+        el('br'),
+        el('input', {id:'newDesc', placeholder:'Description', value:'Playlist électro 3h pour la course à pied'}),
+        el('br'),
+        el('button', {onclick: async ()=>{
+          const name = document.getElementById('newName').value;
+          const desc = document.getElementById('newDesc').value;
+          const res = await apiFetch('/.netlify/functions/create', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, description: desc, public: true }) });
+          if(res.ok){ alert('Playlist créée'); fetchPlaylists(); } else { alert('Erreur création'); }
+        }}, 'Créer')
+      );
+      root.appendChild(createBox);
+
+      async function fetchPlaylists(){
+        const elList = document.getElementById('playlistsList');
+        elList.innerText = 'Chargement...';
+        const res = await apiFetch('/.netlify/functions/list');
+        if(!res.ok){ elList.innerText = 'Erreur chargement...'; return; }
+        const j = await res.json();
+        elList.innerHTML = '';
+        j.items.forEach(pl=>{
+          const card = el('div', {class:'card'}, el('b',{},pl.name), el('div',{class:'small'}, pl.tracks.total + ' tracks'));
+          const open = el('button', {onclick: ()=> window.open(pl.external_urls.spotify, '_blank')}, 'Ouvrir');
+          const add = el('button', {onclick: ()=> addTracksPrompt(pl.id)}, 'Ajouter tracks');
+          const remove = el('button', {onclick: ()=> removeTracksPrompt(pl.id)}, 'Supprimer tracks');
+          const rename = el('button', {onclick: ()=> renamePrompt(pl.id)}, 'Renommer');
+          const unfollow = el('button', {onclick: async ()=>{ if(confirm('Supprimer (unfollow) cette playlist?')){ const r = await apiFetch('/.netlify/functions/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({playlist_id: pl.id})}); if(r.ok){ alert('Playlist unfollowed'); fetchPlaylists(); } else alert('Erreur'); }}}, 'Supprimer');
+          [open, add, remove, rename, unfollow].forEach(b=> card.appendChild(b));
+          elList.appendChild(card);
+        });
+      }
+
+      function addTracksPrompt(playlist_id){
+        const uris = prompt('Entrez des URIs Spotify séparés par des virgules (ex: spotify:track:... , spotify:track:... )');
+        if(!uris) return;
+        apiFetch('/.netlify/functions/add', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ playlist_id, uris: uris.split(',').map(s=>s.trim()) }) }).then(r=>{ if(r.ok){ alert('Ajouté'); fetchPlaylists(); } else alert('Erreur'); });
+      }
+      function removeTracksPrompt(playlist_id){
+        const uris = prompt('Entrez des URIs à supprimer (spotify:track:...), séparés par des virgules');
+        if(!uris) return;
+        const body = { playlist_id, tracks: uris.split(',').map(s=>({ uri: s.trim() })) };
+        apiFetch('/.netlify/functions/remove', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(r=>{ if(r.ok){ alert('Supprimé'); fetchPlaylists(); } else alert('Erreur'); });
+      }
+      function renamePrompt(playlist_id){
+        const name = prompt('Nouveau nom');
+        const desc = prompt('Nouvelle description (laisser vide pour conserver)');
+        if(!name) return;
+        apiFetch('/.netlify/functions/update', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ playlist_id, name, description: desc }) }).then(r=>{ if(r.ok){ alert('Modifié'); fetchPlaylists(); } else alert('Erreur'); });
+      }
+
+      fetchPlaylists();
+    }
+
+    // After login, Spotify redirects to /callback which maps to Netlify function that returns a small HTML
+    // that stores tokens into localStorage and redirects back to root. We'll also provide a manual "Paste code" flow if desired.
+
+    // Check if we're first load and tokens present
+    renderApp();
+    </script>
+  </body>
+</html>
