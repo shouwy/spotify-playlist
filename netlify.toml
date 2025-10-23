@@ -3,6 +3,12 @@
   publish = "dist"
   functions = "functions"
 
+# Allow Netlify Functions to be served (must come BEFORE the catch-all)
+[[redirects]]
+  from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
