@@ -19,6 +19,7 @@ exports.handler = async function(event) {
   try {
     const code = event.queryStringParameters && event.queryStringParameters.code;
     if (!code) return { statusCode: 400, body: 'missing code' };
+    console.log('Received code:', code);
 
     // 1) exchange code for tokens
     const params = new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI });
