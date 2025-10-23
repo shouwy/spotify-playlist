@@ -29,17 +29,21 @@ exports.handler = async function(event) {
       }
     });
     const data = tokenRes.data; // { access_token, token_type, expires_in, refresh_token, scope }
+    console.log('Token Datas:', data);
 
     // 2) get user id to key the refresh token
     const me = await axios.get('https://api.spotify.com/v1/me', { headers: { Authorization: `Bearer ${data.access_token}` }});
     const userId = me.data.id;
+    console.log('User ID:', userId);
 
     // 3) store refresh_token in Upstash Redis under key spotify_refresh:{userId}
     const redisKey = `spotify_refresh:${userId}`; // key stored in redis
     await upstashSet(redisKey, { refresh_token: data.refresh_token, created_at: Date.now() }, 60*60*24*30); // 30 days TTL
+    console.log('Stored refresh token in Upstash Redis with key:', redisKey);
 
     // 4) set cookie with redisKey (HttpOnly, Secure). Cookie contains the redisKey only.
     const cookie = `spotify_refresh_id=${encodeURIComponent(redisKey)}; HttpOnly; Secure; Path=/; Max-Age=${60*60*24*30}; SameSite=Lax`;
+    console.log('Set-Cookie:', cookie);
 
     // 5) Return HTML that stores access_token temporarily in localStorage and redirects to root
     const html = `<!doctype html><html><body><script>
