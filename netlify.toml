@@ -17,3 +17,10 @@
 [functions."process_jobs_cron"]
   # run every 5 minutes (adjust as needed)
   schedule = "*/5 * * * *"
+
+
+[[redirects]]
+  # SPA fallback: serve index for all client-side routes
+  from = "/*"
+  to = "/index.html"
+  status = 200
