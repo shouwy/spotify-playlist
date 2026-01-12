@@ -87,6 +87,11 @@ Notes :
 - conservez `worker:local` lancé dans une autre fenêtre pour traiter les jobs.
 - Assurez-vous que vos variables d'environnement sont chargées (ex: `netlify dev` lit `.env` automatiquement si présent).
 
+Remarques :
+- Vérifiez que `SITE_URL` dans votre `.env` est `http://localhost:8888` (ou l'URL affichée par `netlify dev`) pour que le callback OAuth fonctionne correctement.
+- `npx netlify dev` lit automatiquement le fichier `.env` si présent.
+- En production Netlify peut exécuter un cron (voir `process_jobs_cron`) ; en local, le worker ou un scheduler externe est nécessaire pour traiter la file.
+
 Scripts utiles
 
 - `npm run dev` — démarre Vite (frontend seul)
@@ -141,7 +146,8 @@ Ouvre une issue ou demande-moi comment exécuter un scénario local (ex: "géné
 
 ```bash
 npm install
-npm run dev:netlify
+npm run build
+npx netlify dev --dir=dist --functions=functions
 npm run worker:local
 ```
 
@@ -320,7 +326,8 @@ Follow these steps to enqueue a generation job from the UI, verify the worker pr
 
 ```bash
 npm install
-npm run dev:netlify   # starts the app (Netlify Dev)
+npm run build
+npx netlify dev --dir=dist --functions=functions # starts the app
 npm run worker:local  # starts the local worker that processes jobs
 ```
 
