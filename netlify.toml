@@ -13,3 +13,7 @@
   from = "/login"
   to = "/.netlify/functions/login"
   status = 200
+
+[functions."process_jobs_cron"]
+  # run every 5 minutes (adjust as needed)
+  schedule = "*/5 * * * *"

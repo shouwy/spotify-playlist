@@ -1,0 +1,28 @@
+/* Shared UI styles for non-Tailwind components */
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #111827;
+  color: #fff;
+  padding: 12px 14px;
+  border-radius: 8px;
+  z-index: 9999;
+  box-shadow: 0 6px 20px rgba(2,6,23,0.25);
+}
+
+.btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-danger { background: #d9534f; color: #fff; }
+.btn-primary { background: #2563eb; color: #fff; }
+.btn-muted { background: #e5e7eb; color: #111827; }
+
+.list-item { padding: 8px; border-bottom: 1px solid #eee; }
+
+.metric-bar { background-color: #5cb85c; }

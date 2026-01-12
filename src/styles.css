@@ -1,2 +1,12 @@
-@tailwind base; @tailwind components; @tailwind utilities;
-body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+/* stylelint-disable at-rule-no-unknown */
+@import './styles/ui.css';
+@import './styles/header.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+}
+/* stylelint-enable at-rule-no-unknown */
