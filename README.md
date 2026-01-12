@@ -137,7 +137,7 @@ Ouvre une issue ou demande-moi comment exécuter un scénario local (ex: "géné
 
 ## Démarrage rapide — enfilez une génération, surveillez le worker, confirmez la playlist (FR)
 
-- 1) Lancez le serveur local et le worker
+1. Lancez le serveur local et le worker
 
 ```bash
 npm install
@@ -145,11 +145,11 @@ npm run dev:netlify
 npm run worker:local
 ```
 
-- 2) Depuis l'interface : enfilez une génération
+2. Depuis l'interface : enfilez une génération
 
 - Ouvrez http://localhost:8888, connectez-vous avec Spotify, allez sur la page `Generate`, remplissez les champs et cliquez sur Générer.
 
-- 3) Vérifiez le traitement par le worker (logs)
+3. Vérifiez le traitement par le worker (logs)
 
 - Surveillez le terminal du worker : vous devez voir des lignes comme :
 
@@ -158,7 +158,7 @@ npm run worker:local
 	- `Generated N tracks for job <jobId>`
 	- `Created playlist <playlistId> snapshot <snapshotId>`
 
-- 4) Confirmez la playlist sur Spotify
+4. Confirmez la playlist sur Spotify
 
 - Ouvrez Spotify (même compte que celui utilisé pour l'authentification) et cherchez la playlist créée, ou utilisez la page `Manage Playlists` de l'application.
 - Consultez la section « Votre bibliothèque » → « Playlists » pour rechercher une nouvelle playlist créée à l'horodatage de votre tâche, ou utilisez la page « Gérer les playlists » de l'application (`/manage_playlists`) qui répertorie les playlists créées par l'application.
@@ -316,7 +316,7 @@ Contributing
 
 Follow these steps to enqueue a generation job from the UI, verify the worker processed it, and confirm a playlist was created on Spotify.
 
-- 1) Start the local dev server and the local worker
+1. Start the local dev server and the local worker
 
 ```bash
 npm install
@@ -324,13 +324,13 @@ npm run dev:netlify   # starts the app (Netlify Dev)
 npm run worker:local  # starts the local worker that processes jobs
 ```
 
-- 2) From the UI: enqueue a generation job
+2. From the UI: enqueue a generation job
 
 - Open your browser at the app served by Netlify Dev (usually http://localhost:8888).
 - Sign in with Spotify (if not already). Navigate to the `Generate` page (`/generate`).
 - Fill generator inputs and click the Generate / Start button. That action enqueues a job in Redis and returns a job id.
 
-- 3) Verify the worker processed the job (logs)
+3. Verify the worker processed the job (logs)
 
 - Watch the terminal running `npm run worker:local`. Look for logs similar to:
 
@@ -341,7 +341,7 @@ npm run worker:local  # starts the local worker that processes jobs
 
 - If you don't see processing logs, ensure the worker is connected to the same Redis/Upstash instance and that locks are being acquired. Check environment variables used by `worker_local.js` / the Netlify functions.
 
-- 4) Confirm the playlist on Spotify
+4. Confirm the playlist on Spotify
 
 - Open the Spotify account used to authorize the app (web or desktop client).
 - Look under `Your Library` → `Playlists` for a new playlist created at the timestamp of your job, or use the `Manage Playlists` page in the app (`/manage_playlists`) which lists playlists created by the app.
@@ -352,7 +352,3 @@ npm run worker:local  # starts the local worker that processes jobs
 - If the job enqueues but never processes: confirm `npm run worker:local` is running and has the same environment configuration (`UPSTASH_REDIS_*`, Spotify tokens) as the Netlify functions.
 - If playlist creation failed with an empty playlist: check worker logs for the batch-add requests; the app uses batches of 100 URIs when adding tracks.
 - If you see Spotify 400 errors: ensure the app is sending canonical Spotify IDs (no prefixes) and that the access token is valid.
-
----
-
-If you want, I can also add a small diagnostic script that polls the job status and prints the worker logs automatically—shall I add that?
