@@ -25,7 +25,7 @@ exports.handler = async function(event){
     job.ended_at = null;
     await redis.set(jobKey, job);
     await redis.lpush('generate_queue', jobId);
-    try{ await redis.hincrby('worker:metrics', 'forced_count', 1); }catch(e){}
+    try{ await redis.hincrby('worker:metrics', 'forced_count', 1); }catch(e){ console.warn('force_job: failed to increment forced_count', e?.message || e); }
 
     return { statusCode: 200, body: JSON.stringify({ ok: true, jobId }) };
   }catch(err){

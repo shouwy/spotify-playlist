@@ -234,22 +234,22 @@ async function generateTracks(params, accessToken){
 
   // get user's top tracks
   const headers = { Authorization: `Bearer ${accessToken}` };
-  const me = await axios.get('https://api.spotify.com/v1/me', { headers }).catch(()=>null);
-  const topTracksRes = await axios.get('https://api.spotify.com/v1/me/top/tracks?limit=50', { headers }).catch(()=>({ data:{ items:[] } }));
+  const me = await axios.get('https://api.spotify.com/v1/me', { headers }).catch((e)=>{ console.warn('generate_core: failed to fetch /me', e?.message || e); return null; });
+  const topTracksRes = await axios.get('https://api.spotify.com/v1/me/top/tracks?limit=50', { headers }).catch((e)=>{ console.warn('generate_core: failed to fetch top tracks', e?.message || e); return { data:{ items:[] } }; });
   let topTracks = Array.isArray(topTracksRes.data?.items) ? topTracksRes.data.items.slice() : [];
   for(const g of genres){
-    try{ 
+    try{
       const q = `year:${yearMin}-${yearMax} genre:\"${g}\"`;
        const sr = await axios.get(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=50`, { headers }); 
        topTracks.push(...(sr.data?.tracks?.items||[]));
-     }catch(e){/*ignore*/}
+     }catch(e){ console.warn('generate_core: genre search failed for', g, e?.message || e); }
   }
   const spotifyTrackIds = topTracks.map(t=>t.id).filter(Boolean);
 
   // collect Recco tracks & details
   let collected = await getReccoTracksByIds(spotifyTrackIds);
   for(const chunk of chunkArray(spotifyTrackIds,5)){
-    const recs = await getReccoRecommendations({ trackIds: chunk, seed_genres: genres.length?genres:undefined, targetTempo: null, targetDanceability: targetDance, limit: Math.min(100, spotifyTrackIds.length+20) }).catch(()=>[]);
+    const recs = await getReccoRecommendations({ trackIds: chunk, seed_genres: genres.length?genres:undefined, targetTempo: null, targetDanceability: targetDance, limit: Math.min(100, spotifyTrackIds.length+20) }).catch((e)=>{ console.warn('generate_core: getReccoRecommendations failed', e?.message || e); return []; });
     collected.push(...recs);
   }
 

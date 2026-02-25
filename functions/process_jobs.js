@@ -19,7 +19,7 @@ exports.handler = async function(event){
     if(!lockAcquired){
       // another worker is running — include TTL so caller can backoff
       let ttl = null;
-      try{ ttl = await redis.ttl(lockKey); }catch(e){}
+      try{ ttl = await redis.ttl(lockKey); }catch(e){ console.warn('process_jobs: failed to read lock TTL', e?.message || e); }
       return { statusCode: 200, body: JSON.stringify({ ok: false, running: true, retry_after: ttl }) };
     }
 
@@ -67,12 +67,12 @@ exports.handler = async function(event){
         job.status = 'done'; job.result = result; job.ended_at = Date.now(); await redis.set(jobKey, job);
         const duration = job.ended_at - (job.started_at || jobStart);
         console.log(`Job ${jobId} done in ${duration}ms; tracks=${result.track_count || (result.tracks && result.tracks.length) || 0}`);
-        try{ await redis.hincrby('worker:metrics', 'jobs_succeeded', 1); await redis.lpush('worker:job_durations', String(duration)); await redis.ltrim('worker:job_durations', 0, 99); }catch(e){}
+        try{ await redis.hincrby('worker:metrics', 'jobs_succeeded', 1); await redis.lpush('worker:job_durations', String(duration)); await redis.ltrim('worker:job_durations', 0, 99); }catch(e){ console.warn('process_jobs: failed to update success metrics', e?.message || e); }
       }catch(e){
         console.error('process job failed', e?.message || e);
         job.status = 'error'; job.error = e?.message || String(e); job.ended_at = Date.now(); await redis.set(jobKey, job);
         const durationErr = job.ended_at - (job.started_at || Date.now());
-        try{ await redis.hincrby('worker:metrics', 'jobs_failed', 1); await redis.lpush('worker:job_durations', String(durationErr)); await redis.ltrim('worker:job_durations', 0, 99); }catch(e){}
+        try{ await redis.hincrby('worker:metrics', 'jobs_failed', 1); await redis.lpush('worker:job_durations', String(durationErr)); await redis.ltrim('worker:job_durations', 0, 99); }catch(e){ console.warn('process_jobs: failed to update failure metrics', e?.message || e); }
       }
 
       processed++;
@@ -80,16 +80,16 @@ exports.handler = async function(event){
       try{
         const cur = await redis.get(lockKey);
         if(cur === ownerId){ await redis.set(lockKey, ownerId, { ex: LOCK_TTL_SECONDS }); }
-      }catch(e){ /* best-effort */ }
+      }catch(e){ console.warn('process_jobs: failed to renew lock (best-effort)', e?.message || e); }
     }
 
     // release lock only if we own it
-    try{ const cur = await redis.get(lockKey); if(cur === ownerId) await redis.del(lockKey); }catch(e){ /* ignore */ }
+    try{ const cur = await redis.get(lockKey); if(cur === ownerId) await redis.del(lockKey); }catch(e){ console.warn('process_jobs: failed to release lock', e?.message || e); }
 
     return { statusCode: 200, body: JSON.stringify({ ok: true, processed }) };
   }catch(err){
     console.error('process_jobs error', err?.message || err);
-    try{ await redis.del('worker:lock'); }catch(e){}
+    try{ await redis.del('worker:lock'); }catch(e){ console.warn('process_jobs: failed to delete lock in error handler', e?.message || e); }
     return { statusCode: 500, body: 'process_jobs error' };
   }
 }
