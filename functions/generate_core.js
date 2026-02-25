@@ -74,12 +74,12 @@ function extractSpotifyIdFromItem(obj){
   if(!obj) return null;
   if(obj.uri && typeof obj.uri === 'string' && obj.uri.includes('spotify:track:')) return obj.uri.split(':').pop();
   if(obj.href && typeof obj.href === 'string'){
-    const m = obj.href.match(/track\/([^?\/]+)/);
-    if(m) return m[1];
+    const parts = obj.href.split('/track/');
+    if(parts.length > 1){ return parts[1].split(/[?\/]/)[0]; }
   }
   if(obj.external_urls && obj.external_urls.spotify) {
-    const m = String(obj.external_urls.spotify).match(/track\/([^?\/]+)/);
-    if(m) return m[1];
+    const parts = String(obj.external_urls.spotify).split('/track/');
+    if(parts.length > 1){ return parts[1].split(/[?\/]/)[0]; }
   }
   // fallback: if id looks like a spotify id
   if(obj.id && typeof obj.id === 'string' && /^[A-Za-z0-9]{10,}$/.test(obj.id)) return obj.id;
@@ -109,7 +109,7 @@ async function enrichCollectedWithSpotify(collected, accessToken){
       if(!c.trackTitle && s.name) c.trackTitle = s.name;
       if(!c.name && s.name) c.name = s.name;
       if((!c.artists || !c.artists.length) && Array.isArray(s.artists)) c.artists = s.artists.map(a=>a.name);
-    }catch(e){ /* ignore per-item errors */ }
+    }catch(e){ console.warn('enrichCollectedWithSpotify: per-item error', e?.message || e); }
   }
 
   // gather artist ids and fetch their metadata for genres
@@ -136,7 +136,7 @@ async function enrichCollectedWithSpotify(collected, accessToken){
         }
         const genreArr = Array.from(genres);
         if(genreArr.length) c.genres = genreArr;
-      }catch(e){ /* ignore per-item */ }
+      }catch(e){ console.warn('enrichCollectedWithSpotify: artist metadata error', e?.message || e); }
     }
   }
 
@@ -149,14 +149,21 @@ function normalizeTrack(t, af){
   const albumObj = (t.album && typeof t.album === 'object') ? t.album : null;
   const release = albumObj ? (albumObj.release_date || null) : null;
   const release_year = release ? Number.parseInt(String(release).slice(0,4)) : null;
-  
+
   // Handle both Recco (trackTitle) and Spotify (name) formats
   const trackName = t.trackTitle || t.name || 'Unknown';
-  
+
   // Handle both Recco (objects) and Spotify (objects) artist formats
   const artistsArray = Array.isArray(t.artists) ? t.artists : [];
   const artistNames = artistsArray.map(a => typeof a === 'string' ? a : (a.name || 'Unknown')).filter(Boolean);
-  
+
+  // normalize album name
+  const albumName = albumObj ? albumObj.name : (typeof t.album === 'string' ? t.album : null);
+  // normalize genres (avoid nested ternary)
+  let genresArr = [];
+  if(Array.isArray(t.genres)) genresArr = t.genres;
+  else if(t.genre) genresArr = [t.genre];
+
   return {
     id: t.id,
     name: trackName,
@@ -164,9 +171,9 @@ function normalizeTrack(t, af){
     uri: t.uri || (t.href ? t.href.replace('https://open.spotify.com/track/','spotify:track:') : null),
     href: t.href || null,
     popularity: t.popularity || 0,
-    album: albumObj ? albumObj.name : (typeof t.album === 'string' ? t.album : null),
+    album: albumName,
     release_year,
-    genres: Array.isArray(t.genres) ? t.genres : (t.genre ? [t.genre] : []),
+    genres: genresArr,
     audio_features: af || null,
   };
 }
