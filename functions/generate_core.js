@@ -201,7 +201,7 @@ function computeReleaseYearFromTrack(track){
   }catch(e){ return null; }
 }
 
-function computeScoreForId(id, tracks, features, opts){
+function computeScoreForId({ id, tracks, features, opts }){
   const { target_danceability, bpmMin, bpmMax, yearMin, yearMax } = opts || {};
   const tempoWeight = 4.0; const danceWeight = 1.0; const popularityWeight = 0.2;
   const rangeWidth = Math.max(1, (bpmMax - bpmMin));
@@ -231,9 +231,9 @@ function computeScoreForId(id, tracks, features, opts){
   return { track, score, audio_features };
 }
 
-function scoreAndSelectTracks(ids, tracks, features, opts){
+function scoreAndSelectTracks({ ids, tracks, features, opts }){
   // opts: { target_danceability, bpmMin, bpmMax, yearMin, yearMax }
-  const out = ids.map(id => computeScoreForId(id, tracks, features, opts)).filter(x=>x && x.track);
+  const out = ids.map(id => computeScoreForId({ id, tracks, features, opts })).filter(x=>x && x.track);
   return out;
 }
 
