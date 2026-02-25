@@ -154,15 +154,30 @@ function normalizeTrack(t, af){
   const trackName = t.trackTitle || t.name || 'Unknown';
 
   // Handle both Recco (objects) and Spotify (objects) artist formats
-  const artistsArray = Array.isArray(t.artists) ? t.artists : [];
-  const artistNames = artistsArray.map(a => typeof a === 'string' ? a : (a.name || 'Unknown')).filter(Boolean);
+    const artistsArray = Array.isArray(t.artists) ? t.artists : [];
+    const artistNames = [];
+    for (const a of artistsArray) {
+      if (typeof a === 'string') {
+        artistNames.push(a);
+      } else {
+        artistNames.push(a.name || 'Unknown');
+      }
+    }
 
   // normalize album name
-  const albumName = albumObj ? albumObj.name : (typeof t.album === 'string' ? t.album : null);
+    let albumName = null;
+    if (albumObj) {
+      albumName = albumObj.name;
+    } else if (typeof t.album === 'string') {
+      albumName = t.album;
+    }
   // normalize genres (avoid nested ternary)
-  let genresArr = [];
-  if(Array.isArray(t.genres)) genresArr = t.genres;
-  else if(t.genre) genresArr = [t.genre];
+    let genresArr = [];
+    if (Array.isArray(t.genres)) {
+      genresArr = t.genres;
+    } else if (t.genre) {
+      genresArr = [t.genre];
+    }
 
   return {
     id: t.id,
