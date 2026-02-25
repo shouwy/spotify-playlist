@@ -171,40 +171,47 @@ function normalizeTrack(t, af){
   };
 }
 
-function scoreAndSelectTracks(ids, tracks, features, target_danceability, bpmMin, bpmMax, yearMin, yearMax){
-  // same scoring logic as in generate.js
+function computeReleaseYearFromTrack(track){
+  if(!track) return null;
+  try{
+    const r = track.release_year || (track.album && (track.album.release_date || track.album.release_date)) || track.release_date;
+    return r ? Number.parseInt(String(r).slice(0,4)) : null;
+  }catch(e){ return null; }
+}
+
+function computeScoreForId(id, tracks, features, opts){
+  const { target_danceability, bpmMin, bpmMax, yearMin, yearMax } = opts || {};
   const tempoWeight = 4.0; const danceWeight = 1.0; const popularityWeight = 0.2;
   const rangeWidth = Math.max(1, (bpmMax - bpmMin));
-  const out = ids.map(id=>{
-    const track = tracks.find(t=>t && t.id===id) || null;
-    const audio_features = (features||[]).find(x=>x && x.id===id) || null;
-    let score=0;
-    // determine release year if available
-    let release_year = null;
-    try{
-      const r = track && (track.release_year || (track.album && (track.album.release_date || track.album.release_date)) || track.release_date);
-      if(r){ release_year = Number.parseInt(String(r).slice(0,4)); }
-    }catch(e){ release_year = null; }
 
-    // filter by year range if provided
-    if(typeof yearMin === 'number' && typeof yearMax === 'number' && release_year){
-      if(release_year < yearMin || release_year > yearMax){
-        return null;
-      }
+  const track = tracks.find(t=>t && t.id===id) || null;
+  const audio_features = (features||[]).find(x=>x && x.id===id) || null;
+  let score = 0;
+
+  const release_year = computeReleaseYearFromTrack(track);
+  if(typeof yearMin === 'number' && typeof yearMax === 'number' && release_year){
+    if(release_year < yearMin || release_year > yearMax) return null;
+  }
+
+  if(audio_features){
+    if(target_danceability!=null && typeof audio_features.danceability === 'number'){
+      const danceScore = Math.max(0,1-Math.abs(audio_features.danceability - target_danceability));
+      score += danceWeight * danceScore;
     }
-    if(audio_features){
-      if(target_danceability!=null && typeof audio_features.danceability === 'number'){
-        const danceScore = Math.max(0,1-Math.abs(audio_features.danceability - target_danceability)); score += danceWeight * danceScore;
-      }
-      if(typeof audio_features.tempo === 'number'){
-        const tempo = audio_features.tempo; let tempoScore = 0;
-        if(tempo >= bpmMin && tempo <= bpmMax) tempoScore = 1; else { const dist = tempo < bpmMin ? (bpmMin-tempo) : (tempo-bpmMax); tempoScore = Math.max(0,1 - (dist/(rangeWidth*2))); }
-        score += tempoWeight * tempoScore;
-      }
+    if(typeof audio_features.tempo === 'number'){
+      const tempo = audio_features.tempo; let tempoScore = 0;
+      if(tempo >= bpmMin && tempo <= bpmMax) tempoScore = 1; else { const dist = tempo < bpmMin ? (bpmMin-tempo) : (tempo-bpmMax); tempoScore = Math.max(0,1 - (dist/(rangeWidth*2))); }
+      score += tempoWeight * tempoScore;
     }
-    if(track && typeof track.popularity === 'number') score += popularityWeight * (track.popularity/100);
-    return { track, score, audio_features };
-  }).filter(x=>x && x.track);
+  }
+
+  if(track && typeof track.popularity === 'number') score += popularityWeight * (track.popularity/100);
+  return { track, score, audio_features };
+}
+
+function scoreAndSelectTracks(ids, tracks, features, opts){
+  // opts: { target_danceability, bpmMin, bpmMax, yearMin, yearMax }
+  const out = ids.map(id => computeScoreForId(id, tracks, features, opts)).filter(x=>x && x.track);
   return out;
 }
 
@@ -254,7 +261,7 @@ async function generateTracks(params, accessToken){
     features.push(...f);
   }
 
-  const scored = scoreAndSelectTracks(ids, collected, features, targetDance, bpmMin, bpmMax, yearMin, yearMax);
+  const scored = scoreAndSelectTracks(ids, collected, features, { target_danceability: targetDance, bpmMin, bpmMax, yearMin, yearMax });
   scored.sort((a,b)=> (b.score||0)-(a.score||0));
 
   const targetCount = Math.max(1, Math.ceil(length_minutes / 3.5));
