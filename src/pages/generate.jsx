@@ -60,6 +60,7 @@ export default function GeneratePage() {
           setMessage(`Worker started; polling for results...`);
         }
       }catch(e){
+        /* eslint-disable-next-line no-console */
         console.warn('failed to trigger worker', e);
       }
 
@@ -88,6 +89,7 @@ export default function GeneratePage() {
           setMessage(`Job ${job.status}...`);
           interval = Math.min(maxInterval, interval * 2);
         }catch(e){
+          /* eslint-disable-next-line no-console */
           console.warn('poll error', e);
           interval = Math.min(maxInterval, interval * 2);
         }
@@ -96,6 +98,7 @@ export default function GeneratePage() {
         setMessage('Timeout while waiting for job.');
       }
     }catch(err){
+      /* eslint-disable-next-line no-console */
       console.error(err);
       setMessage('Erreur pendant la génération.');
     } finally {
@@ -122,20 +125,23 @@ export default function GeneratePage() {
   }
 
   // share the same fetch promise across mounts so StrictMode remounts don't lose the result
-  let lastJobPromise = null;
+  const lastJobPromiseRef = useRef(null);
   useEffect(()=>{
     let mounted = true;
     async function fetchLast(){
       try{
-        if(!lastJobPromise){
-          lastJobPromise = callGetLastJob().catch(e => { lastJobPromise = null; throw e; });
+        if(!lastJobPromiseRef.current){
+          lastJobPromiseRef.current = callGetLastJob().catch(e => { lastJobPromiseRef.current = null; throw e; });
         }
-        let res = await lastJobPromise;
+        let res = await lastJobPromiseRef.current;
         if(typeof res === 'string') res = JSON.parse(res);
         if(!mounted) return;
         setLastJob(res);
         setHasActive(!!res?.hasActive);
-      }catch(e){ console.error('fetchLast error', e); }
+      }catch(e){
+        /* eslint-disable-next-line no-console */
+        console.error('fetchLast error', e);
+      }
     }
     fetchLast();
     return ()=>{ mounted = false };
@@ -150,12 +156,14 @@ export default function GeneratePage() {
     setMessage('');
     try{
       const chosen = tracks.filter(t => selected.has(t.id)).map(t => t.uri || t.track?.uri || t.href && hrefToSpotifyUri(t.href)).filter(Boolean);
+      /* eslint-disable-next-line no-console */
       console.log('saving playlist with tracks', chosen);
       const res = await callCreatePlaylist({ name: playlistName, uris: chosen });
       setMessage(res?.playlistId ? `Playlist créée (${res.playlistId})` : 'Playlist créée.');
       // navigate to manage page
       window.location.href = '/manage';
     }catch(e){
+      /* eslint-disable-next-line no-console */
       console.error(e);
       setMessage('Erreur lors de la sauvegarde.');
     } finally {
@@ -165,9 +173,13 @@ export default function GeneratePage() {
 
   function hrefToSpotifyUri(href){
     if(!href) return null;
-    const m = href.match(/^https?:\/\/open\.spotify\.com\/([^\/]+)\/([^?\/]+)(?:\?.*)?$/);
-    if(!m) return null;
-    return `spotify:${m[1]}:${m[2]}`;
+    try{
+      const url = new URL(href);
+      if(url.hostname !== 'open.spotify.com') return null;
+      const parts = url.pathname.split('/').filter(Boolean);
+      if(parts.length < 2) return null;
+      return `spotify:${parts[0]}:${parts[1]}`;
+    }catch(e){ return null; }
   }
 
   return (

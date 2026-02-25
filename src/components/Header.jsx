@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 
 export default function Header({ user, onLogin, onLogout }){
   const [open, setOpen] = useState(false);
@@ -62,3 +63,16 @@ function MenuItem({ icon, text, onClick, disabled }){
     </button>
   );
 }
+
+Header.propTypes = {
+  user: PropTypes.object,
+  onLogin: PropTypes.func,
+  onLogout: PropTypes.func,
+};
+
+MenuItem.propTypes = {
+  icon: PropTypes.node,
+  text: PropTypes.string.isRequired,
+  onClick: PropTypes.func,
+  disabled: PropTypes.bool,
+};

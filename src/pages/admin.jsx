@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { callClearQueue, callForceJob, callGetMetrics, callGetUserJobs, callGetAllJobs } from '../utils/api.js';
 
+import PropTypes from 'prop-types';
+
 function Toast({ msg, onClose }){
   useEffect(()=>{ const t = setTimeout(onClose, 3500); return ()=>clearTimeout(t); }, [onClose]);
   return <div className="toast">{msg}</div>;
 }
+
+Toast.propTypes = {
+  msg: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired,
+};
 
 export default function AdminPage(){
   const [toast, setToast] = useState(null);
@@ -53,7 +60,13 @@ export default function AdminPage(){
   }
 
   async function refreshMetrics(){
-    try{ const m = await callGetMetrics(); setMetrics(m); }catch(e){ console.warn(e); }
+    try{
+      const m = await callGetMetrics();
+      setMetrics(m);
+    }catch(e){
+      /* eslint-disable-next-line no-console */
+      console.warn(e);
+    }
   }
 
   async function refreshJobs(){
@@ -61,15 +74,20 @@ export default function AdminPage(){
       // if backend supports get_all_jobs (admin-only) use it, otherwise fallback to user jobs
       const res = await callGetAllJobs().catch(()=> null) || await callGetUserJobs().catch(()=> ({ jobs: [] }));
       setJobs(res.jobs || []);
-    }catch(e){ console.warn(e); }
+    }catch(e){
+      /* eslint-disable-next-line no-console */
+      console.warn(e);
+    }
   }
 
   const loadedRef = React.useRef(false);
   useEffect(()=>{
     if(loadedRef.current) return;
     loadedRef.current = true;
-    refreshMetrics();
-    refreshJobs();
+    (async () => {
+      await refreshMetrics();
+      await refreshJobs();
+    })();
   }, []);
 
   const durations = (metrics?.recent_job_durations || []).filter(d=>typeof d === 'number');

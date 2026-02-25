@@ -11,15 +11,7 @@ export default function JobPage(){
     return p.get('id');
   }
 
-  async function fetchJob(){
-    const id = getQuery();
-    if(!id) { setMsg('missing id'); setLoading(false); return; }
-    try{
-      const j = await callGetJob(id);
-      setJob(j);
-    }catch(e){ setMsg(e.message || String(e)); }
-    setLoading(false);
-  }
+  // fetch job on mount
 
   async function force(){
     if(!job || !job.id) return;
@@ -30,7 +22,19 @@ export default function JobPage(){
     }catch(e){ setMsg('Error: '+(e.message||e)); }
   }
 
-  useEffect(()=>{ fetchJob(); },[]);
+  useEffect(()=>{
+    let mounted = true;
+    (async ()=>{
+      const id = getQuery();
+      if(!id){ if(mounted){ setMsg('missing id'); setLoading(false); } return; }
+      try{
+        const j = await callGetJob(id);
+        if(mounted) setJob(j);
+      }catch(e){ if(mounted) setMsg(e.message || String(e)); }
+      if(mounted) setLoading(false);
+    })();
+    return ()=>{ mounted = false };
+  },[]);
 
   if(loading) return <div className="p-5">Loading...</div>;
   if(!job) return <div className="p-5">No job</div>;

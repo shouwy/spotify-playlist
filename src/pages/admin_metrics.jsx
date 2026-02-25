@@ -19,8 +19,8 @@ export default function AdminMetricsPage(){
   useEffect(()=>{
     if(loadedRef.current) return;
     loadedRef.current = true;
-    fetchMetrics();
-    const id = setInterval(fetchMetrics, 30_000);
+    (async () => { await fetchMetrics(); })();
+    const id = setInterval(()=>{ void fetchMetrics(); }, 30_000);
     return ()=>clearInterval(id);
   },[]);
 
