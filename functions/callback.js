@@ -68,7 +68,7 @@ exports.handler = async function(event) {
     const html = `<!doctype html><html><body><script>
       const tokens = ${JSON.stringify({ access_token: data.access_token, expires_in: data.expires_in })};
       localStorage.setItem('spotify_tokens', JSON.stringify(tokens));
-      window.location = '/';
+      globalThis.location = '/';
     </script></body></html>`;
 
     return { statusCode: 200, headers: { 'Content-Type': 'text/html', 'Set-Cookie': cookie }, body: html };

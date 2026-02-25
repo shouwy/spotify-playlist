@@ -21,7 +21,7 @@ exports.handler = async function(event){
       // h contains string values; map them into expected keys
       for(const [k,v] of Object.entries(h||{})){
         // keep the same key names as before for backward compatibility
-        out[`worker:${k}`] = isNaN(Number(v)) ? v : Number(v);
+        out[`worker:${k}`] = Number.isNaN(Number(v)) ? v : Number(v);
       }
     }catch(e){ /* ignore */ }
     // queue length

@@ -23,7 +23,7 @@ exports.handler = async function(event){
     for(const id of ids){
       let j = await redis.get(`job:${id}`);
       try{ j = typeof j === 'string' ? JSON.parse(j) : j; }catch(e){ j = null; }
-      if(j && (j.status === 'queued' || j.status === 'running')){ hasActive = true; break; }
+      if (j?.status === 'queued' || j?.status === 'running') { hasActive = true; break; }
     }
 
     return { statusCode: 200, body: JSON.stringify({ job, hasActive }) };

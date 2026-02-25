@@ -148,7 +148,7 @@ function normalizeTrack(t, af){
   // album can be either an object (with name/release_date) or a string; handle both
   const albumObj = (t.album && typeof t.album === 'object') ? t.album : null;
   const release = albumObj ? (albumObj.release_date || null) : null;
-  const release_year = release ? parseInt(String(release).slice(0,4)) : null;
+  const release_year = release ? Number.parseInt(String(release).slice(0,4)) : null;
   
   // Handle both Recco (trackTitle) and Spotify (name) formats
   const trackName = t.trackTitle || t.name || 'Unknown';
@@ -183,7 +183,7 @@ function scoreAndSelectTracks(ids, tracks, features, target_danceability, bpmMin
     let release_year = null;
     try{
       const r = track && (track.release_year || (track.album && (track.album.release_date || track.album.release_date)) || track.release_date);
-      if(r){ release_year = parseInt(String(r).slice(0,4)); }
+      if(r){ release_year = Number.parseInt(String(r).slice(0,4)); }
     }catch(e){ release_year = null; }
 
     // filter by year range if provided
@@ -216,7 +216,7 @@ async function generateTracks(params, accessToken){
   const yearMax = Number(params.year_max) || new Date().getFullYear();
   const genres = Array.isArray(params.genres) ? params.genres : (params.genres ? [params.genres] : []);
   const length_minutes = Number(params.length_minutes) || 60;
-  const targetDance = typeof params.danceability === 'number' || !isNaN(Number(params.danceability)) ? Number(params.danceability) : 0.7;
+  const targetDance = typeof params.danceability === 'number' || !Number.isNaN(Number(params.danceability)) ? Number(params.danceability) : 0.7;
 
   // get user's top tracks
   const headers = { Authorization: `Bearer ${accessToken}` };
