@@ -55,7 +55,7 @@ export default function Header({ user, onLogin, onLogout }){
 }
 
 function MenuItem({ icon, text, onClick, disabled }){
-  const handle = () => { if(disabled) return; onClick?.(); };
+  const handle = () => { if(!disabled) onClick?.(); };
   return (
     <button onClick={handle} disabled={disabled} className={`menu-item ${disabled ? 'disabled' : ''}`}>
       <span className="icon">{icon}</span>
