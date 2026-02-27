@@ -1,6 +1,6 @@
 const { Redis } = require('@upstash/redis');
 const { upstashGet } = require('./_utils');
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 const UPSTASH_REDIS_REST_URL = process.env.UPSTASH_REDIS_REST_URL;
 const UPSTASH_REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -22,9 +22,9 @@ exports.handler = async function(event){
 
     // ensure the key maps to a stored refresh token
     const stored = await upstashGet(redisKey);
-    if(!stored || !stored.refresh_token) return { statusCode: 401, body: JSON.stringify({ error: 'missing refresh token' }) };
+    if(!stored?.refresh_token) return { statusCode: 401, body: JSON.stringify({ error: 'missing refresh token' }) };
 
-    const jobId = (crypto.randomUUID && crypto.randomUUID()) || crypto.randomBytes(16).toString('hex');
+    const jobId = (crypto.randomUUID?.()) || crypto.randomBytes(16).toString('hex');
     const job = {
       id: jobId,
       status: 'queued',

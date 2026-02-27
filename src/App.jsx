@@ -5,52 +5,50 @@ import AdminPage from './pages/admin';
 import AdminUsers from './pages/admin_users';
 import AdminMetrics from './pages/admin_metrics';
 import JobPage from './pages/job';
-import { callAdminRequest } from './utils/api.js';
+// callAdminRequest removed - not used
 import Header from './components/Header';
 
-const SITE_URL = window.location.origin
-const SCOPES = 'playlist-modify-public playlist-modify-private playlist-read-private user-top-read'
+// constants removed: SITE_URL and SCOPES were unused
 
 function App(){
   const [user, setUser] = useState(null)
-  const path = window.location.pathname;
+  const path = globalThis.location.pathname;
   
-  useEffect(()=>{ fetchProfile() }, [])
-
-  useEffect(()=>{
-    // if user is already logged in and on the root path, redirect to generate
-    if(user && window.location.pathname === '/'){
-      window.location.href = '/generate';
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const r = await fetch('/.netlify/functions/me')
+        if (!r.ok) return
+        const j = await r.json()
+        setUser(j)
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e)
+      }
     }
-  }, [user]);
 
-  async function fetchProfile(){
-    try{
-      const r = await fetch('/.netlify/functions/me')
-      if(!r.ok) return
-      const j = await r.json()
-      setUser(j)
-    }catch(e){ console.error(e) }
-  }
+    fetchProfile()
+  }, [])
 
-  function login(){ window.location.href = '/login' }
+  useEffect(() => {
+    // if user is already logged in and on the root path, redirect to generate
+    if (user && typeof globalThis !== 'undefined' && globalThis.location.pathname === '/') {
+      globalThis.location.href = '/generate'
+    }
+  }, [user])
+
+  function login() { globalThis.location.href = '/login' }
   async function logout(){ 
     localStorage.removeItem('spotify_tokens');
-    try{ await fetch('/.netlify/functions/logout'); }catch(e){}
+    try{ await fetch('/.netlify/functions/logout'); }catch(e){
+      /* eslint-disable-next-line no-console */
+      console.warn(e);
+    }
     setUser(null);
-    window.location.href = '/';
+    globalThis.location.href = '/';
   }
 
-  const [adminRequesting, setAdminRequesting] = useState(false);
-  async function requestAdmin(){
-    if(adminRequesting) return;
-    setAdminRequesting(true);
-    try{
-      await callAdminRequest();
-      alert('Demande soumise');
-    }catch(e){ alert('Erreur: '+(e.message||e)); }
-    setAdminRequesting(false);
-  }
+  // admin request removed (not used)
 
   function renderPage(){
     if(path === '/generate') return <GeneratePage />;
@@ -74,7 +72,7 @@ function App(){
 
   return (
     <div>
-      <Header user={user} onLogin={()=>login()} onLogout={()=>logout()} />
+      <Header user={user} onLogin={login} onLogout={logout} />
       {renderPage()}
     </div>
   )

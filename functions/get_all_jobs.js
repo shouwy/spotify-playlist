@@ -13,7 +13,7 @@ exports.handler = async function(event){
     if(role !== 'admin') return { statusCode: 403, body: JSON.stringify({ error: 'forbidden' }) };
 
     const ids = await redis.lrange('all_jobs', 0, 499).catch(()=>[]);
-    if(!ids || !ids.length) return { statusCode: 200, body: JSON.stringify({ jobs: [] }) };
+    if(!ids?.length) return { statusCode: 200, body: JSON.stringify({ jobs: [] }) };
 
     const jobs = [];
     for(const id of ids){
@@ -22,7 +22,9 @@ exports.handler = async function(event){
         if(!j) continue;
         const duration = j.started_at && j.ended_at ? (j.ended_at - j.started_at) : null;
         jobs.push({ id: j.id, status: j.status, created_at: j.created_at, started_at: j.started_at, ended_at: j.ended_at, duration, error: j.error || null, user_redis_key: j.user_redis_key || null });
-      }catch(e){ /* skip */ }
+      }catch(e){ 
+        console.warn(`Failed to retrieve job ${id}:`, e?.message || e);
+      }
     }
 
     return { statusCode: 200, body: JSON.stringify({ jobs }) };

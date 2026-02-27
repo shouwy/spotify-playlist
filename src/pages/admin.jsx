@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { callClearQueue, callForceJob, callGetMetrics, callGetUserJobs, callGetAllJobs } from '../utils/api.js';
 
+import PropTypes from 'prop-types';
+
 function Toast({ msg, onClose }){
   useEffect(()=>{ const t = setTimeout(onClose, 3500); return ()=>clearTimeout(t); }, [onClose]);
   return <div className="toast">{msg}</div>;
 }
+
+Toast.propTypes = {
+  msg: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired,
+};
 
 export default function AdminPage(){
   const [toast, setToast] = useState(null);
@@ -14,7 +21,7 @@ export default function AdminPage(){
   const [jobs, setJobs] = useState([]);
 
   async function clearQueue(){
-    if(!window.confirm('Vider la file generate_queue ? Cette action est irréversible.')) return;
+    if(!globalThis.confirm('Vider la file generate_queue ? Cette action est irréversible.')) return;
     setRunning(true);
     try{
       const res = await callClearQueue();
@@ -39,7 +46,7 @@ export default function AdminPage(){
   }
 
   async function forceJobClick(id){
-    if(!window.confirm('Forcer ce job ?')) return;
+    if(!globalThis.confirm('Forcer ce job ?')) return;
     setJobId(id);
     setRunning(true);
     try{
@@ -53,7 +60,13 @@ export default function AdminPage(){
   }
 
   async function refreshMetrics(){
-    try{ const m = await callGetMetrics(); setMetrics(m); }catch(e){ console.warn(e); }
+    try{
+      const m = await callGetMetrics();
+      setMetrics(m);
+    }catch(e){
+      /* eslint-disable-next-line no-console */
+      console.warn(e);
+    }
   }
 
   async function refreshJobs(){
@@ -61,15 +74,20 @@ export default function AdminPage(){
       // if backend supports get_all_jobs (admin-only) use it, otherwise fallback to user jobs
       const res = await callGetAllJobs().catch(()=> null) || await callGetUserJobs().catch(()=> ({ jobs: [] }));
       setJobs(res.jobs || []);
-    }catch(e){ console.warn(e); }
+    }catch(e){
+      /* eslint-disable-next-line no-console */
+      console.warn(e);
+    }
   }
 
   const loadedRef = React.useRef(false);
   useEffect(()=>{
     if(loadedRef.current) return;
     loadedRef.current = true;
-    refreshMetrics();
-    refreshJobs();
+    (async () => {
+      await refreshMetrics();
+      await refreshJobs();
+    })();
   }, []);
 
   const durations = (metrics?.recent_job_durations || []).filter(d=>typeof d === 'number');
@@ -106,7 +124,7 @@ export default function AdminPage(){
           <h3 className="font-semibold">Durées récentes (ms)</h3>
           <div className="flex items-end gap-1 h-24">
             {durations.slice(0, 30).map((d, i)=>(
-              <div key={i} title={Math.round(d)+'ms'} className="flex-1 metric-bar" style={{ height: (d/maxDuration)*100 + '%' }}></div>
+              <div key={d} title={Math.round(d)+'ms'} className="flex-1 metric-bar" style={{ height: (d/maxDuration)*100 + '%' }}></div>
             ))}
           </div>
         </div>

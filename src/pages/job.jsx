@@ -1,28 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { callGetJob, callForceJob } from '../utils/api.js';
 
+function getQuery(){
+  const p = new URLSearchParams(globalThis.location.search);
+  return p.get('id');
+}
+
 export default function JobPage(){
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
 
-  function getQuery(){
-    const p = new URLSearchParams(window.location.search);
-    return p.get('id');
-  }
-
-  async function fetchJob(){
-    const id = getQuery();
-    if(!id) { setMsg('missing id'); setLoading(false); return; }
-    try{
-      const j = await callGetJob(id);
-      setJob(j);
-    }catch(e){ setMsg(e.message || String(e)); }
-    setLoading(false);
-  }
+  // fetch job on mount
 
   async function force(){
-    if(!job || !job.id) return;
+    if(!job?.id) return;
     try{
       setMsg('Forcing job...');
       await callForceJob(job.id);
@@ -30,7 +22,19 @@ export default function JobPage(){
     }catch(e){ setMsg('Error: '+(e.message||e)); }
   }
 
-  useEffect(()=>{ fetchJob(); },[]);
+  useEffect(()=>{
+    let mounted = true;
+    (async ()=>{
+      const id = getQuery();
+      if(!id){ if(mounted){ setMsg('missing id'); setLoading(false); } return; }
+      try{
+        const j = await callGetJob(id);
+        if(mounted) setJob(j);
+      }catch(e){ if(mounted) setMsg(e.message || String(e)); }
+      if(mounted) setLoading(false);
+    })();
+    return ()=>{ mounted = false };
+  },[]);
 
   if(loading) return <div className="p-5">Loading...</div>;
   if(!job) return <div className="p-5">No job</div>;
@@ -50,16 +54,16 @@ export default function JobPage(){
         <button onClick={force} className="px-3 py-2 bg-blue-600 text-white rounded">Forcer job</button>
       </div>
       <h3 className="mt-4 text-lg font-semibold">Result</h3>
-      {job.result && job.result.tracks ? (
+      {job.result?.tracks ? (
         <ul className="list-none p-0">
           {job.result.tracks.map(t => {
-            const id = t.id || t.track?.id || (t.href && t.href.split('/').pop());
-            const title = t.name || t.title || (t.track && t.track.name) || 'Unknown';
+            const id = t.id || t.track?.id || (t.href?.split('/').pop());
+            const title = t.name || t.title || (t.track?.name) || 'Unknown';
             const artists = (t.artists || []).map(a=>a).join(', ') || t.artist || '';
             const tempo = t.audio_features?.tempo ?? t.audio_features?.bpm ?? null;
             const dance = typeof t.audio_features?.danceability === 'number' ? t.audio_features.danceability : (t.danceability ?? null);
-            const year = t.release_year || (t.album && t.album.release_date && t.album.release_date.slice(0,4)) || null;
-            const popularity = t.popularity ?? (t.track && t.track.popularity) ?? null;
+            const year = t.release_year || (t.album?.release_date?.slice(0,4)) || null;
+            const popularity = t.popularity ?? (t.track?.popularity) ?? null;
             return (
               <li key={id} className="flex items-center p-2 border-b border-gray-200">
                 <div className="flex-1">

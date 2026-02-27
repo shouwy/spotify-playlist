@@ -8,7 +8,8 @@
         "preview": "vite preview",
         "dev:netlify": "npx netlify dev",
         "worker:local": "node worker_local.js",
-        "admin:grant": "node scripts/grant-admin.js"
+        "admin:grant": "node scripts/grant-admin.js",
+        "lint": "eslint src --ext .js,.jsx"
     },
     "dependencies": {
         "@upstash/redis": "^1.35.6",
@@ -21,6 +22,9 @@
         "@vitejs/plugin-react": "^5.1.2",
         "autoprefixer": "^10.4.0",
         "esbuild": "^0.27.2",
+        "eslint": "^8.45.0",
+        "eslint-plugin-react": "^7.37.5",
+        "eslint-plugin-react-hooks": "^7.0.1",
         "netlify-cli": "^23.13.3",
         "postcss": "^8.4.0",
         "stylelint-config-tailwindcss": "^1.0.0",

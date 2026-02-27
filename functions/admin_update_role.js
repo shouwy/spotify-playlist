@@ -21,7 +21,7 @@ exports.handler = async function(event){
     if(newRole === 'admin'){
       await redis.set(roleKey, 'admin');
       // remove pending request if exists
-      try{ await redis.del(`admin_request:${targetKey}`); }catch(e){}
+      try{ await redis.del(`admin_request:${targetKey}`); }catch(e){ console.warn('admin_update_role: failed to remove admin_request for', targetKey, e?.message || e); }
       return { statusCode: 200, body: JSON.stringify({ ok: true, message: 'granted' }) };
     }else{
       await redis.del(roleKey);

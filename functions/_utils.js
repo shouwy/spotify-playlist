@@ -31,7 +31,7 @@ async function getAuthHeaderFromEvent(event){
   if(!m) return null;
   const redisKey = decodeURIComponent(m[1]);
   const stored = await upstashGet(redisKey);
-  if(!stored || !stored.refresh_token) return null;
+  if(!stored?.refresh_token) return null;
   const tokenData = await refreshWithRefreshToken(stored.refresh_token);
   return `Bearer ${tokenData.access_token}`;
 }

@@ -5,11 +5,11 @@ const UPSTASH_REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 const redis = new Redis({ url: UPSTASH_REDIS_REST_URL, token: UPSTASH_REDIS_REST_TOKEN });
 
 async function safeGet(key){
-  try{ const v = await redis.get(key); return v == null ? null : Number(v); }catch(e){ return null; }
+  try{ const v = await redis.get(key); return v == null ? null : Number(v); }catch(e){ console.warn('metrics: safeGet failed for key', key, e?.message || e); return null; }
 }
 
 async function safeLRange(key, start = 0, end = -1){
-  try{ const arr = await redis.lrange(key, start, end); return Array.isArray(arr) ? arr.map(x=>Number(x)||0) : []; }catch(e){ return null; }
+  try{ const arr = await redis.lrange(key, start, end); return Array.isArray(arr) ? arr.map(x=>Number(x)||0) : []; }catch(e){ console.warn('metrics: safeLRange failed for key', key, e?.message || e); return null; }
 }
 
 exports.handler = async function(event){
@@ -21,11 +21,11 @@ exports.handler = async function(event){
       // h contains string values; map them into expected keys
       for(const [k,v] of Object.entries(h||{})){
         // keep the same key names as before for backward compatibility
-        out[`worker:${k}`] = isNaN(Number(v)) ? v : Number(v);
+        out[`worker:${k}`] = Number.isNaN(Number(v)) ? v : Number(v);
       }
-    }catch(e){ /* ignore */ }
+    }catch(e){ console.warn('metrics: failed to read worker:metrics hash', e?.message || e); }
     // queue length
-    try{ out.generate_queue_length = await redis.llen('generate_queue'); }catch(e){ out.generate_queue_length = null; }
+    try{ out.generate_queue_length = await redis.llen('generate_queue'); }catch(e){ console.warn('metrics: failed to read generate_queue length', e?.message || e); out.generate_queue_length = null; }
 
     // recent job durations (ms)
     const durations = await safeLRange('worker:job_durations', 0, 49);

@@ -10,7 +10,7 @@ exports.handler = async function(event){
     const body = JSON.parse(event.body || '{}');
     if(!body.playlist_id) return { statusCode:400, body:'missing playlist_id' };
 
-    const res = await axios.request({
+    await axios.request({
       method: 'DELETE',
       url: `https://api.spotify.com/v1/playlists/${body.playlist_id}/followers`,
       headers: { Authorization: authHeader }

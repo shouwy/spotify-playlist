@@ -11,7 +11,7 @@ exports.handler = async function(event){
     if(!redisKey) return { statusCode: 401, body: JSON.stringify({ error: 'not authorized' }) };
 
     const ids = await redis.lrange(`user_jobs:${redisKey}`, 0, 9);
-    if(!ids || !ids.length) return { statusCode: 200, body: JSON.stringify({ job: null, hasActive: false }) };
+    if(!ids?.length) return { statusCode: 200, body: JSON.stringify({ job: null, hasActive: false }) };
 
     // fetch most recent job
     const lastId = ids[0];
@@ -22,8 +22,8 @@ exports.handler = async function(event){
     let hasActive = false;
     for(const id of ids){
       let j = await redis.get(`job:${id}`);
-      try{ j = typeof j === 'string' ? JSON.parse(j) : j; }catch(e){ j = null; }
-      if(j && (j.status === 'queued' || j.status === 'running')){ hasActive = true; break; }
+      try{ j = typeof j === 'string' ? JSON.parse(j) : j; }catch(e){ console.warn('get_last_job: failed to parse job JSON', e?.message || e); j = null; }
+      if (j?.status === 'queued' || j?.status === 'running') { hasActive = true; break; }
     }
 
     return { statusCode: 200, body: JSON.stringify({ job, hasActive }) };

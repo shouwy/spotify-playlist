@@ -7,7 +7,7 @@ const redis = new Redis({ url: UPSTASH_REDIS_REST_URL, token: UPSTASH_REDIS_REST
 exports.handler = async function(event){
   try{
     const qs = event.queryStringParameters || {};
-    const id = qs.id || (event.path && event.path.split('/').pop());
+    const id = qs.id || (event.path?.split('/').pop());
     if(!id) return { statusCode: 400, body: 'missing id' };
     const job = await redis.get(`job:${id}`);
     if(!job) return { statusCode: 404, body: 'not found' };

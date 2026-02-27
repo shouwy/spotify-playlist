@@ -18,27 +18,30 @@ exports.handler = async function(event){
       try{
         const v = await redis.get(k);
         users.push({ key: k, role: v });
-      }catch(e){ /* skip */ }
+      }catch(e){
+        console.warn('admin_list_users: failed to get user role for key', k, e?.message || e);
+      }
     }
 
     const requests = await redis.lrange('admin_requests', 0, 99).catch(()=>[]);
     console.log('admin requests (raw):', requests);
 
-    const parsedRequests = [];
-    for(const r of (requests||[])){
-      if(!r) continue;
-      if(typeof r === 'object'){
-        parsedRequests.push(r);
-        continue;
-      }
-      if(typeof r === 'string'){
-        try{
-          parsedRequests.push(JSON.parse(r));
-        }catch(e){
-          console.warn('admin_list_users: failed to parse request item', r, e?.message || e);
+    function parseAdminRequests(reqs){
+      const out = [];
+      for(const item of (reqs||[])){
+        if(!item) continue;
+        if(typeof item === 'object'){
+          out.push(item);
+          continue;
+        }
+        if(typeof item === 'string'){
+          try{ out.push(JSON.parse(item)); }catch(e){ console.warn('admin_list_users: failed to parse request item', item, e?.message || e); }
         }
       }
+      return out;
     }
+
+    const parsedRequests = parseAdminRequests(requests);
     console.log('parsed requests:', parsedRequests);
 
     return { statusCode: 200, body: JSON.stringify({ users, requests: parsedRequests }) };

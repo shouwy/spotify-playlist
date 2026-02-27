@@ -11,7 +11,7 @@ exports.handler = async function(event){
     if(!redisKey) return { statusCode: 401, body: JSON.stringify({ error: 'not authorized' }) };
 
     const ids = await redis.lrange(`user_jobs:${redisKey}`, 0, 99);
-    if(!ids || !ids.length) return { statusCode: 200, body: JSON.stringify({ jobs: [] }) };
+    if(!ids?.length) return { statusCode: 200, body: JSON.stringify({ jobs: [] }) };
 
     const jobs = [];
     for(const id of ids){
@@ -28,7 +28,9 @@ exports.handler = async function(event){
           duration,
           error: j.error || null
         });
-      }catch(e){ /* skip */ }
+      }catch(e){
+        console.warn(`Failed to retrieve job ${id}:`, e?.message || e);
+      }
     }
 
     return { statusCode: 200, body: JSON.stringify({ jobs }) };

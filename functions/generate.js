@@ -6,7 +6,7 @@ exports.handler = async function(event){
   try{
       const body = JSON.parse(event.body || '{}');
       // accept Authorization header first, otherwise derive it from cookie -> redis -> refresh token
-      let auth = (event.headers || {})['authorization'] || (event.headers || {})['Authorization'];
+      let auth = event.headers?.['authorization'] || event.headers?.['Authorization'];
       if(!auth) auth = await getAuthHeaderFromEvent(event);
       if(!auth) return { statusCode: 401, body: JSON.stringify({ error: 'not authorized' }) };
       const accessToken = auth.replace('Bearer ','');

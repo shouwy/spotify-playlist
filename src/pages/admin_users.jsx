@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { callAdminListUsers, callAdminUpdateRole } from '../utils/api.js';
 
 function Toast({ msg, onClose }){ useEffect(()=>{ const t = setTimeout(onClose, 3500); return ()=>clearTimeout(t); }, [onClose]); return <div className="toast">{msg}</div>; }
+Toast.propTypes = { msg: PropTypes.string.isRequired, onClose: PropTypes.func.isRequired };
 
 export default function AdminUsers(){
   const [data, setData] = useState({ users: [], requests: [] });
@@ -28,7 +30,7 @@ export default function AdminUsers(){
   useEffect(()=>{
     if(loadedRef.current) return;
     loadedRef.current = true;
-    refresh();
+    (async ()=>{ await refresh(); })();
   }, []);
 
   if(loading) return <div className="p-5">Loading...</div>;
@@ -38,11 +40,11 @@ export default function AdminUsers(){
       <h2 className="text-xl font-semibold">Gestion des utilisateurs</h2>
       {toast && <Toast msg={toast} onClose={()=>setToast(null)} />}
       <div className="mt-3">
-        <h3 className="font-semibold">Demandes d'accès</h3>
+        <h3 className="font-semibold">Demandes d&apos;accès</h3>
         {data.requests.length === 0 && <div className="text-gray-600">Aucune demande</div>}
         <ul className="p-0 list-none">
           {data.requests.map((r,i)=>(
-            <li key={i} className="mb-2">
+            <li key={r.redisKey} className="mb-2">
               <div>{r.redisKey} — demandé le {new Date(r.requested_at).toLocaleString()}</div>
               <div className="mt-1">
                 <button onClick={()=>grant(r.redisKey)} className="px-2 py-1 bg-green-600 text-white rounded">Accorder</button>
@@ -56,10 +58,10 @@ export default function AdminUsers(){
         <h3 className="font-semibold">Utilisateurs connus</h3>
         <ul className="p-0 list-none">
           {data.users.map((u,i)=>(
-            <li key={i} className="mb-2">
+            <li key={u.ke} className="mb-2">
               <div>{u.key} — {u.role}</div>
               <div className="mt-1">
-                {u.role !== 'admin' ? <button onClick={()=>grant(u.key)} className="px-2 py-1 bg-blue-600 text-white rounded">Grant Admin</button> : <button onClick={()=>revoke(u.key)} className="px-2 py-1 bg-gray-200 rounded">Revoke Admin</button>}
+                {u.role === 'admin' ? <button onClick={()=>revoke(u.key)} className="px-2 py-1 bg-gray-200 rounded">Revoke Admin</button> : <button onClick={()=>grant(u.key)} className="px-2 py-1 bg-blue-600 text-white rounded">Grant Admin</button>}
               </div>
             </li>
           ))}

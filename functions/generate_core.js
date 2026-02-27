@@ -50,7 +50,7 @@ async function getSpotifyTracksByIds(trackIds, accessToken){
       });
       console.log('getSpotifyTracksByIds: requesting ids', cleaned.slice(0,10));
       const res = await axios.get('https://api.spotify.com/v1/tracks', { params: { ids: cleaned.join(',') }, headers });
-      out.push(...(res.data && res.data.tracks ? res.data.tracks.filter(Boolean) : []));
+      out.push(...(res.data?.tracks ? res.data.tracks.filter(Boolean) : []));
     }catch(e){ console.warn('getSpotifyTracksByIds error', e?.message || e); }
   }
   return out;
@@ -63,8 +63,8 @@ async function getSpotifyArtistsByIds(artistIds, accessToken){
   for(const chunk of chunkArray(artistIds,50)){
     try{
       const res = await axios.get('https://api.spotify.com/v1/artists', { params: { ids: chunk.join(',') }, headers });
-      out.push(...(res.data && res.data.artists ? res.data.artists.filter(Boolean) : []));
-    }catch(e){ /* best-effort: skip */ }
+      out.push(...(res.data?.artists ? res.data.artists.filter(Boolean) : []));
+    }catch(e){ console.warn('getSpotifyArtistsByIds error', e?.message || e); }
   }
   return out;
 }
@@ -74,12 +74,12 @@ function extractSpotifyIdFromItem(obj){
   if(!obj) return null;
   if(obj.uri && typeof obj.uri === 'string' && obj.uri.includes('spotify:track:')) return obj.uri.split(':').pop();
   if(obj.href && typeof obj.href === 'string'){
-    const m = obj.href.match(/track\/([^?\/]+)/);
-    if(m) return m[1];
+    const parts = obj.href.split('/track/');
+    if(parts.length > 1){ return parts[1].split(/[?\\/]/)[0]; }
   }
-  if(obj.external_urls && obj.external_urls.spotify) {
-    const m = String(obj.external_urls.spotify).match(/track\/([^?\/]+)/);
-    if(m) return m[1];
+  if(obj.external_urls?.spotify) {
+    const parts = String(obj.external_urls.spotify).split('/track/');
+    if(parts.length > 1){ return parts[1].split(/[?\\/]/)[0]; }
   }
   // fallback: if id looks like a spotify id
   if(obj.id && typeof obj.id === 'string' && /^[A-Za-z0-9]{10,}$/.test(obj.id)) return obj.id;
@@ -91,53 +91,77 @@ function extractSpotifyIdsFromCollected(collected){
   return Array.from(new Set(ids));
 }
 
+// Helper: enrich a single collected item with Spotify track metadata
+function enrichItemWithTrackMetadata(collected, spotifyTrack){
+  const idx = collected.findIndex(c=>c && (extractSpotifyIdFromItem(c) === spotifyTrack.id || c.id === spotifyTrack.id));
+  if(idx === -1) return;
+  const c = collected[idx];
+  // ensure album object and release_date
+  c.album = c.album || {};
+  if(!c.album.release_date && spotifyTrack.album?.release_date) c.album.release_date = spotifyTrack.album.release_date;
+  if(!c.album.name && spotifyTrack.album?.name) c.album.name = spotifyTrack.album.name;
+  // canonical name and artists
+  if(!c.trackTitle && spotifyTrack.name) c.trackTitle = spotifyTrack.name;
+  if(!c.name && spotifyTrack.name) c.name = spotifyTrack.name;
+  if((!c.artists?.length) && Array.isArray(spotifyTrack.artists)) c.artists = spotifyTrack.artists.map(a=>a.name);
+}
+
+// Helper: enrich all collected items with track metadata
+function enrichAllTracksMetadata(collected, spotifyMeta){
+  for(const s of spotifyMeta){
+    try{
+      enrichItemWithTrackMetadata(collected, s);
+    }catch(e){ console.warn('enrichCollectedWithSpotify: per-item error', e?.message || e); }
+  }
+}
+
+// Helper: gather unique artist ids from spotify metadata
+function gatherArtistIds(spotifyMeta){
+  const artistIds = new Set();
+  for(const s of spotifyMeta){
+    if(Array.isArray(s.artists)) for(const a of s.artists) if(a?.id) artistIds.add(a.id);
+  }
+  return Array.from(artistIds);
+}
+
+// Helper: enrich a single item with genres from artist metadata
+function enrichItemWithGenres(collected, spotifyTrack, artistMap){
+  const idx = collected.findIndex(c=>c && (extractSpotifyIdFromItem(c) === spotifyTrack.id || c.id === spotifyTrack.id));
+  if(idx === -1) return;
+  const c = collected[idx];
+  const genres = new Set();
+  if(Array.isArray(spotifyTrack.artists)){
+    for(const a of spotifyTrack.artists){
+      const meta = artistMap[a.id];
+      if(meta && Array.isArray(meta.genres)) for(const g of meta.genres) genres.add(g);
+    }
+  }
+  const genreArr = Array.from(genres);
+  if(genreArr.length) c.genres = genreArr;
+}
+
+// Helper: enrich all items with genre metadata
+function enrichAllGenres(collected, spotifyMeta, artistMap){
+  for(const s of spotifyMeta){
+    try{
+      enrichItemWithGenres(collected, s, artistMap);
+    }catch(e){ console.warn('enrichCollectedWithSpotify: artist metadata error', e?.message || e); }
+  }
+}
+
 // Enrich collected Recco items with Spotify track + artist metadata (release_date, canonical names, genres)
 async function enrichCollectedWithSpotify(collected, accessToken){
   const uniqIds = extractSpotifyIdsFromCollected(collected);
   const spotifyMeta = await getSpotifyTracksByIds(uniqIds, accessToken);
 
-  for(const s of spotifyMeta){
-    try{
-      const idx = collected.findIndex(c=>c && (extractSpotifyIdFromItem(c) === s.id || c.id === s.id));
-      if(idx === -1) continue;
-      const c = collected[idx];
-      // ensure album object and release_date
-      c.album = c.album || {};
-      if(!c.album.release_date && s.album && s.album.release_date) c.album.release_date = s.album.release_date;
-      if(!c.album.name && s.album && s.album.name) c.album.name = s.album.name;
-      // canonical name and artists
-      if(!c.trackTitle && s.name) c.trackTitle = s.name;
-      if(!c.name && s.name) c.name = s.name;
-      if((!c.artists || !c.artists.length) && Array.isArray(s.artists)) c.artists = s.artists.map(a=>a.name);
-    }catch(e){ /* ignore per-item errors */ }
-  }
+  enrichAllTracksMetadata(collected, spotifyMeta);
 
-  // gather artist ids and fetch their metadata for genres
-  const artistIds = new Set();
-  for(const s of spotifyMeta){
-    if(Array.isArray(s.artists)) for(const a of s.artists) if(a && a.id) artistIds.add(a.id);
-  }
-  const artistList = Array.from(artistIds);
+  const artistList = gatherArtistIds(spotifyMeta);
   if(artistList.length){
     const artistsMeta = await getSpotifyArtistsByIds(artistList, accessToken);
     const artistMap = {};
     for(const a of artistsMeta) artistMap[a.id] = a;
-    for(const s of spotifyMeta){
-      try{
-        const idx = collected.findIndex(c=>c && (extractSpotifyIdFromItem(c) === s.id || c.id === s.id));
-        if(idx === -1) continue;
-        const c = collected[idx];
-        const genres = new Set();
-        if(Array.isArray(s.artists)){
-          for(const a of s.artists){
-            const meta = artistMap[a.id];
-            if(meta && Array.isArray(meta.genres)) for(const g of meta.genres) genres.add(g);
-          }
-        }
-        const genreArr = Array.from(genres);
-        if(genreArr.length) c.genres = genreArr;
-      }catch(e){ /* ignore per-item */ }
-    }
+    enrichAllGenres(collected, spotifyMeta, artistMap);
   }
 
   return { collected: collected.length, spotifyMeta: spotifyMeta.length, artistCount: artistList.length };
@@ -148,15 +172,37 @@ function normalizeTrack(t, af){
   // album can be either an object (with name/release_date) or a string; handle both
   const albumObj = (t.album && typeof t.album === 'object') ? t.album : null;
   const release = albumObj ? (albumObj.release_date || null) : null;
-  const release_year = release ? parseInt(String(release).slice(0,4)) : null;
-  
+  const release_year = release ? Number.parseInt(String(release).slice(0,4)) : null;
+
   // Handle both Recco (trackTitle) and Spotify (name) formats
   const trackName = t.trackTitle || t.name || 'Unknown';
-  
+
   // Handle both Recco (objects) and Spotify (objects) artist formats
-  const artistsArray = Array.isArray(t.artists) ? t.artists : [];
-  const artistNames = artistsArray.map(a => typeof a === 'string' ? a : (a.name || 'Unknown')).filter(Boolean);
-  
+    const artistsArray = Array.isArray(t.artists) ? t.artists : [];
+    const artistNames = [];
+    for (const a of artistsArray) {
+      if (typeof a === 'string') {
+        artistNames.push(a);
+      } else {
+        artistNames.push(a.name || 'Unknown');
+      }
+    }
+
+  // normalize album name
+    let albumName = null;
+    if (albumObj) {
+      albumName = albumObj.name;
+    } else if (typeof t.album === 'string') {
+      albumName = t.album;
+    }
+  // normalize genres (avoid nested ternary)
+    let genresArr = [];
+    if (Array.isArray(t.genres)) {
+      genresArr = t.genres;
+    } else if (t.genre) {
+      genresArr = [t.genre];
+    }
+
   return {
     id: t.id,
     name: trackName,
@@ -164,47 +210,73 @@ function normalizeTrack(t, af){
     uri: t.uri || (t.href ? t.href.replace('https://open.spotify.com/track/','spotify:track:') : null),
     href: t.href || null,
     popularity: t.popularity || 0,
-    album: albumObj ? albumObj.name : (typeof t.album === 'string' ? t.album : null),
+    album: albumName,
     release_year,
-    genres: Array.isArray(t.genres) ? t.genres : (t.genre ? [t.genre] : []),
+    genres: genresArr,
     audio_features: af || null,
   };
 }
 
-function scoreAndSelectTracks(ids, tracks, features, target_danceability, bpmMin, bpmMax, yearMin, yearMax){
-  // same scoring logic as in generate.js
-  const tempoWeight = 4.0; const danceWeight = 1.0; const popularityWeight = 0.2;
-  const rangeWidth = Math.max(1, (bpmMax - bpmMin));
-  const out = ids.map(id=>{
-    const track = tracks.find(t=>t && t.id===id) || null;
-    const audio_features = (features||[]).find(x=>x && x.id===id) || null;
-    let score=0;
-    // determine release year if available
-    let release_year = null;
-    try{
-      const r = track && (track.release_year || (track.album && (track.album.release_date || track.album.release_date)) || track.release_date);
-      if(r){ release_year = parseInt(String(r).slice(0,4)); }
-    }catch(e){ release_year = null; }
+function computeReleaseYearFromTrack(track){
+  if(!track) return null;
+  try{
+    const r = track.release_year || (track.album?.release_date) || track.release_date;
+    return r ? Number.parseInt(String(r).slice(0,4)) : null;
+  }catch(e){ console.warn('computeReleaseYearFromTrack error', e?.message || e); return null; }
+}
 
-    // filter by year range if provided
-    if(typeof yearMin === 'number' && typeof yearMax === 'number' && release_year){
-      if(release_year < yearMin || release_year > yearMax){
-        return null;
-      }
+function computeAudioFeatureScore(audio_features, target_danceability, bpmMin, bpmMax){
+  const tempoWeight = 4;
+  const danceWeight = 1;
+  const rangeWidth = Math.max(1, (bpmMax - bpmMin));
+  let score = 0;
+
+  if(!audio_features) return score;
+
+  if(target_danceability!=null && typeof audio_features.danceability === 'number'){
+    const danceScore = Math.max(0,1-Math.abs(audio_features.danceability - target_danceability));
+    score += danceWeight * danceScore;
+  }
+
+  if(typeof audio_features.tempo === 'number'){
+    const tempo = audio_features.tempo;
+    let tempoScore = 0;
+    if(tempo >= bpmMin && tempo <= bpmMax){
+      tempoScore = 1;
+    } else {
+      const dist = tempo < bpmMin ? (bpmMin-tempo) : (tempo-bpmMax);
+      tempoScore = Math.max(0,1 - (dist/(rangeWidth*2)));
     }
-    if(audio_features){
-      if(target_danceability!=null && typeof audio_features.danceability === 'number'){
-        const danceScore = Math.max(0,1-Math.abs(audio_features.danceability - target_danceability)); score += danceWeight * danceScore;
-      }
-      if(typeof audio_features.tempo === 'number'){
-        const tempo = audio_features.tempo; let tempoScore = 0;
-        if(tempo >= bpmMin && tempo <= bpmMax) tempoScore = 1; else { const dist = tempo < bpmMin ? (bpmMin-tempo) : (tempo-bpmMax); tempoScore = Math.max(0,1 - (dist/(rangeWidth*2))); }
-        score += tempoWeight * tempoScore;
-      }
-    }
-    if(track && typeof track.popularity === 'number') score += popularityWeight * (track.popularity/100);
-    return { track, score, audio_features };
-  }).filter(x=>x && x.track);
+    score += tempoWeight * tempoScore;
+  }
+
+  return score;
+}
+
+function isYearInRange(release_year, yearMin, yearMax){
+  if(typeof yearMin !== 'number' || typeof yearMax !== 'number' || !release_year) return true;
+  return release_year >= yearMin && release_year <= yearMax;
+}
+
+function computeScoreForId({ id, tracks, features, opts }){
+  const { target_danceability, bpmMin, bpmMax, yearMin, yearMax } = opts || {};
+  const popularityWeight = 0.2;
+
+  const track = tracks.find(t=>t && t.id===id) || null;
+  const audio_features = (features||[]).find(x=>x && x.id===id) || null;
+
+  const release_year = computeReleaseYearFromTrack(track);
+  if(!isYearInRange(release_year, yearMin, yearMax)) return null;
+
+  let score = computeAudioFeatureScore(audio_features, target_danceability, bpmMin, bpmMax);
+
+  if(track && typeof track.popularity === 'number') score += popularityWeight * (track.popularity/100);
+  return { track, score, audio_features };
+}
+
+function scoreAndSelectTracks({ ids, tracks, features, opts }){
+  // opts: { target_danceability, bpmMin, bpmMax, yearMin, yearMax }
+  const out = ids.map(id => computeScoreForId({ id, tracks, features, opts })).filter(x=>x?.track);
   return out;
 }
 
@@ -214,28 +286,33 @@ async function generateTracks(params, accessToken){
   const bpmMax = Number(params.bpm_max) || 250;
   const yearMin = Number(params.year_min) || 1900;
   const yearMax = Number(params.year_max) || new Date().getFullYear();
-  const genres = Array.isArray(params.genres) ? params.genres : (params.genres ? [params.genres] : []);
+  let genres = [];
+  if (Array.isArray(params.genres)) {
+    genres = params.genres;
+  } else if (params.genres) {
+    genres = [params.genres];
+  }
   const length_minutes = Number(params.length_minutes) || 60;
-  const targetDance = typeof params.danceability === 'number' || !isNaN(Number(params.danceability)) ? Number(params.danceability) : 0.7;
+  const targetDance = typeof params.danceability === 'number' || !Number.isNaN(Number(params.danceability)) ? Number(params.danceability) : 0.7;
 
   // get user's top tracks
   const headers = { Authorization: `Bearer ${accessToken}` };
-  const me = await axios.get('https://api.spotify.com/v1/me', { headers }).catch(()=>null);
-  const topTracksRes = await axios.get('https://api.spotify.com/v1/me/top/tracks?limit=50', { headers }).catch(()=>({ data:{ items:[] } }));
+  const me = await axios.get('https://api.spotify.com/v1/me', { headers }).catch((e)=>{ console.warn('generate_core: failed to fetch /me', e?.message || e); return null; });
+  const topTracksRes = await axios.get('https://api.spotify.com/v1/me/top/tracks?limit=50', { headers }).catch((e)=>{ console.warn('generate_core: failed to fetch top tracks', e?.message || e); return { data:{ items:[] } }; });
   let topTracks = Array.isArray(topTracksRes.data?.items) ? topTracksRes.data.items.slice() : [];
   for(const g of genres){
-    try{ 
-      const q = `year:${yearMin}-${yearMax} genre:\"${g}\"`;
+    try{
+      const q = String.raw`year:${yearMin}-${yearMax} genre:\"${g}\"`;
        const sr = await axios.get(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=50`, { headers }); 
        topTracks.push(...(sr.data?.tracks?.items||[]));
-     }catch(e){/*ignore*/}
+     }catch(e){ console.warn('generate_core: genre search failed for', g, e?.message || e); }
   }
   const spotifyTrackIds = topTracks.map(t=>t.id).filter(Boolean);
 
   // collect Recco tracks & details
   let collected = await getReccoTracksByIds(spotifyTrackIds);
   for(const chunk of chunkArray(spotifyTrackIds,5)){
-    const recs = await getReccoRecommendations({ trackIds: chunk, seed_genres: genres.length?genres:undefined, targetTempo: null, targetDanceability: targetDance, limit: Math.min(100, spotifyTrackIds.length+20) }).catch(()=>[]);
+    const recs = await getReccoRecommendations({ trackIds: chunk, seed_genres: genres.length?genres:undefined, targetTempo: null, targetDanceability: targetDance, limit: Math.min(100, spotifyTrackIds.length+20) }).catch((e)=>{ console.warn('generate_core: getReccoRecommendations failed', e?.message || e); return []; });
     collected.push(...recs);
   }
 
@@ -243,7 +320,7 @@ async function generateTracks(params, accessToken){
   try{
     const info = await enrichCollectedWithSpotify(collected, accessToken);
     console.log('generate_core: enrichment counts', info);
-  }catch(e){ /* ignore enrichment errors */ }
+  }catch(e){ console.warn('generate_core: enrichment error', e?.message || e); }
 
   console.log(`Collected ${collected.length} total recommendations`);
   
@@ -254,7 +331,7 @@ async function generateTracks(params, accessToken){
     features.push(...f);
   }
 
-  const scored = scoreAndSelectTracks(ids, collected, features, targetDance, bpmMin, bpmMax, yearMin, yearMax);
+  const scored = scoreAndSelectTracks({ ids, tracks: collected, features, opts: { target_danceability: targetDance, bpmMin, bpmMax, yearMin, yearMax } });
   scored.sort((a,b)=> (b.score||0)-(a.score||0));
 
   const targetCount = Math.max(1, Math.ceil(length_minutes / 3.5));
