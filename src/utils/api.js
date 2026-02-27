@@ -39,7 +39,12 @@ export async function callProcessJob(){
   const res = await fetch('/.netlify/functions/generate_trigger', { method: 'POST', credentials: 'include' });
   const text = await res.text();
   if(!res.ok){ throw new Error(text || 'trigger failed'); }
-  try{ return text ? JSON.parse(text) : { ok: true }; }catch(e){ return { ok: true, raw: text }; }
+  try {
+    return text ? JSON.parse(text) : { ok: true };
+  } catch(e) {
+    console.error('Failed to parse response:', e);
+    return { ok: true, raw: text };
+  }
 }
 
 export async function callCreatePlaylist(body){

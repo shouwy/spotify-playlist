@@ -18,7 +18,9 @@ exports.handler = async function(event){
       try{
         const v = await redis.get(k);
         users.push({ key: k, role: v });
-      }catch(e){ /* skip */ }
+      }catch(e){
+        console.warn('admin_list_users: failed to get user role for key', k, e?.message || e);
+      }
     }
 
     const requests = await redis.lrange('admin_requests', 0, 99).catch(()=>[]);

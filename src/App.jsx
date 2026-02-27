@@ -12,7 +12,7 @@ import Header from './components/Header';
 
 function App(){
   const [user, setUser] = useState(null)
-  const path = window.location.pathname;
+  const path = globalThis.location.pathname;
   
   useEffect(() => {
     async function fetchProfile() {
@@ -32,12 +32,12 @@ function App(){
 
   useEffect(() => {
     // if user is already logged in and on the root path, redirect to generate
-    if (user && typeof window !== 'undefined' && window.location.pathname === '/') {
-      window.location.href = '/generate'
+    if (user && typeof globalThis !== 'undefined' && globalThis.location.pathname === '/') {
+      globalThis.location.href = '/generate'
     }
   }, [user])
 
-  function login() { window.location.href = '/login' }
+  function login() { globalThis.location.href = '/login' }
   async function logout(){ 
     localStorage.removeItem('spotify_tokens');
     try{ await fetch('/.netlify/functions/logout'); }catch(e){
@@ -45,7 +45,7 @@ function App(){
       console.warn(e);
     }
     setUser(null);
-    window.location.href = '/';
+    globalThis.location.href = '/';
   }
 
   // admin request removed (not used)

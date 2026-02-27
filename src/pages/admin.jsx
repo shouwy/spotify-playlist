@@ -21,7 +21,7 @@ export default function AdminPage(){
   const [jobs, setJobs] = useState([]);
 
   async function clearQueue(){
-    if(!window.confirm('Vider la file generate_queue ? Cette action est irréversible.')) return;
+    if(!globalThis.confirm('Vider la file generate_queue ? Cette action est irréversible.')) return;
     setRunning(true);
     try{
       const res = await callClearQueue();
@@ -46,7 +46,7 @@ export default function AdminPage(){
   }
 
   async function forceJobClick(id){
-    if(!window.confirm('Forcer ce job ?')) return;
+    if(!globalThis.confirm('Forcer ce job ?')) return;
     setJobId(id);
     setRunning(true);
     try{
@@ -124,7 +124,7 @@ export default function AdminPage(){
           <h3 className="font-semibold">Durées récentes (ms)</h3>
           <div className="flex items-end gap-1 h-24">
             {durations.slice(0, 30).map((d, i)=>(
-              <div key={i} title={Math.round(d)+'ms'} className="flex-1 metric-bar" style={{ height: (d/maxDuration)*100 + '%' }}></div>
+              <div key={d} title={Math.round(d)+'ms'} className="flex-1 metric-bar" style={{ height: (d/maxDuration)*100 + '%' }}></div>
             ))}
           </div>
         </div>

@@ -27,25 +27,25 @@ export default function Header({ user, onLogin, onLogout }){
           <div className="menu-divider" />
 
           <div className="menu-col">
-            <MenuItem disabled={!user} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>} text="Générer" onClick={()=>{ window.location.href = '/generate' }} />
-            <MenuItem disabled={!user} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /></svg>} text="Gérer" onClick={()=>{ window.location.href = '/manage' }} />
+            <MenuItem disabled={!user} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>} text="Générer" onClick={()=>{ globalThis.location.href = '/generate' }} />
+            <MenuItem disabled={!user} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /></svg>} text="Gérer" onClick={()=>{ globalThis.location.href = '/manage' }} />
 
             {user?.role === 'admin' && (
               <>
                 <div className="h-2" />
                 <div className="menu-admin-label">Admin</div>
-                <MenuItem icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l2 5 5 .5-4 3 1 5-4-3-4 3 1-5-4-3 5-.5z" /></svg>} text="Tableau de bord" onClick={()=>{ window.location.href = '/admin' }} />
-                <MenuItem icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zM6 5v6h10V5" /></svg>} text="Gérer les utilisateurs" onClick={()=>{ window.location.href = '/admin/users' }} />
+                <MenuItem icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l2 5 5 .5-4 3 1 5-4-3-4 3 1-5-4-3 5-.5z" /></svg>} text="Tableau de bord" onClick={()=>{ globalThis.location.href = '/admin' }} />
+                <MenuItem icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zM6 5v6h10V5" /></svg>} text="Gérer les utilisateurs" onClick={()=>{ globalThis.location.href = '/admin/users' }} />
               </>
             )}
 
             <div className="h-2" />
             <div className="menu-divider" />
 
-            {!user ? (
-              <MenuItem icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v12" /><path d="M20 12v6a2 2 0 0 1-2 2H8" /><path d="M18 2v4" /><path d="M9 7h6" /></svg>} text="Se connecter" onClick={onLogin} />
-            ) : (
+            {user ? (
               <MenuItem icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>} text="Se déconnecter" onClick={onLogout} />
+            ) : (
+              <MenuItem icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v12" /><path d="M20 12v6a2 2 0 0 1-2 2H8" /><path d="M18 2v4" /><path d="M9 7h6" /></svg>} text="Se connecter" onClick={onLogin} />
             )}
           </div>
         </div>
@@ -55,7 +55,7 @@ export default function Header({ user, onLogin, onLogout }){
 }
 
 function MenuItem({ icon, text, onClick, disabled }){
-  const handle = () => { if(disabled) return; onClick && onClick(); };
+  const handle = () => { if(disabled) return; onClick?.(); };
   return (
     <button onClick={handle} disabled={disabled} className={`menu-item ${disabled ? 'disabled' : ''}`}>
       <span className="icon">{icon}</span>

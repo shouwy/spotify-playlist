@@ -31,7 +31,7 @@ exports.handler = async function(event) {
       return { statusCode: 500, body: 'Missing Redis config' };
     }
 
-    const code = event.queryStringParameters && event.queryStringParameters.code;
+    const code = event.queryStringParameters?.code;
     if (!code) {
       console.error('callback: missing code in query params');
       return { statusCode: 400, body: 'missing code' };

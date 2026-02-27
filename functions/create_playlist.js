@@ -30,7 +30,7 @@ exports.handler = async function(event) {
         const chunk = uris.slice(i, i+100);
         const addRes = await axios.post(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, { uris: chunk }, { headers: { Authorization: authHeader, 'Content-Type': 'application/json' }});
         // keep last snapshot_id
-        if(addRes && addRes.data && addRes.data.snapshot_id) snapshot_id = addRes.data.snapshot_id;
+        if(addRes?.data?.snapshot_id) snapshot_id = addRes.data.snapshot_id;
       }
     }
 

@@ -14,7 +14,9 @@ exports.handler = async function(event){
     try{
       const role = await upstashGet(`user_roles:${redisKey}`);
       if(role === 'admin') return { statusCode: 400, body: JSON.stringify({ error: 'already admin' }) };
-    }catch(e){ /* ignore */ }
+    }catch(e){
+      console.debug('admin_request: failed to check user role', e?.message || e);
+    }
 
     // attempt to record request only if not already present (use NX to avoid races)
     const payload = { redisKey, requested_at: Date.now() };
